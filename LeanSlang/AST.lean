@@ -33,6 +33,9 @@ inductive SlangExpr
   | bin      (op : String) (lhs rhs : SlangExpr)
   | un       (op : String) (e : SlangExpr)
   | call     (fn : String) (args : List SlangExpr)
+  /-- `(cond ? t : f)` — ternary select. Emits with explicit parens
+      so it can nest inside larger expressions without ambiguity. -/
+  | ternary  (cond t f : SlangExpr)
 deriving Inhabited
 
 /-- Slang statements. -/

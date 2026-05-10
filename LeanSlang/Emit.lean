@@ -74,6 +74,8 @@ partial def emitExpr : SlangExpr → String
   | .call fn args      =>
       let argsStr := String.intercalate ", " (args.map emitExpr)
       fn ++ "(" ++ argsStr ++ ")"
+  | .ternary c t f     =>
+      "(" ++ emitExpr c ++ " ? " ++ emitExpr t ++ " : " ++ emitExpr f ++ ")"
 
 /-! ## Statements -/
 

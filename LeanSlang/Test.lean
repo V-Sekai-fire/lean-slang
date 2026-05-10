@@ -257,3 +257,33 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit whileLoopShader = whileLoopShaderExpected := by
   native_decide
+
+/-- Fixture: ternary select pattern. Mirrors the divide-by-zero
+    guard `y[i] = (d[i] == 0) ? 0 : b[i] / d[i]` from the
+    Jacobi-preconditioner kernel. -/
+def ternaryShader : SlangShaderModule :=
+  { functions := [{
+      attrs  := [.shaderCompute, .numthreads 1 1 1]
+      name   := "main"
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+      body   :=
+        [ .declInit (.scalar .float) "d" (.litFloat 1.0)
+        , .declInit (.scalar .float) "b" (.litFloat 2.0)
+        , .declInit (.scalar .float) "y"
+            (.ternary (.bin "==" (.var "d") (.litFloat 0.0))
+                      (.litFloat 0.0)
+                      (.bin "/" (.var "b") (.var "d")))
+        , .ret none ] }] }
+
+def ternaryShaderExpected : String :=
+"[shader(\"compute\")] [numthreads(1, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  float d = 1.000000;
+  float b = 2.000000;
+  float y = ((d == 0.000000) ? 0.000000 : (b / d));
+  return;
+}"
+
+example :
+    LeanSlang.emit ternaryShader = ternaryShaderExpected := by
+  native_decide
