@@ -53,7 +53,11 @@ inductive SlangStmt
   /-- `if (cond) { then } [else { else }]`. -/
   | ifThen   (cond : SlangExpr) (thenS : List SlangStmt) (elseS : List SlangStmt)
   /-- `for (uint <name> = <init>; <name> < <bound>; ++<name>) { body }`. -/
-  | forCount (name : String) (init bound : SlangExpr) (body : List SlangStmt)
+  | forCount  (name : String) (init bound : SlangExpr) (body : List SlangStmt)
+  /-- `while (cond) { body }` — caller supplies the termination
+      condition. Used for solver convergence loops and tree
+      reductions where the step isn't a simple `++`. -/
+  | whileLoop (cond : SlangExpr) (body : List SlangStmt)
 deriving Inhabited
 
 /-- Convenience: declare with no initializer. -/

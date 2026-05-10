@@ -120,6 +120,11 @@ partial def emitStmt : Nat → SlangStmt → String
       let bodyStr := String.intercalate "\n" (body.map (emitStmt (depth + 1)))
       let close := indent depth ++ closeBrace
       head ++ "\n" ++ bodyStr ++ "\n" ++ close
+  | depth, .whileLoop cond body =>
+      let head := indent depth ++ "while (" ++ emitExpr cond ++ ") " ++ openBrace
+      let bodyStr := String.intercalate "\n" (body.map (emitStmt (depth + 1)))
+      let close := indent depth ++ closeBrace
+      head ++ "\n" ++ bodyStr ++ "\n" ++ close
 
 /-! ## Function attributes / declarations / module -/
 

@@ -229,3 +229,31 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit preciseShader = preciseShaderExpected := by
   native_decide
+
+/-- Fixture: tree reduce-style while loop with bit-shift step
+    (mirrors `for (step = 128; step > 0; step >>= 1)` from
+    dot_reduce.comp's intra-workgroup reduction). -/
+def whileLoopShader : SlangShaderModule :=
+  { functions := [{
+      attrs  := [.shaderCompute, .numthreads 256 1 1]
+      name   := "main"
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+      body   :=
+        [ .declInit (.scalar .uint) "step" (.litUint 128)
+        , .whileLoop (.bin ">" (.var "step") (.litUint 0))
+            [ .assign (.var "step") (.bin ">>" (.var "step") (.litUint 1)) ]
+        , .ret none ] }] }
+
+def whileLoopShaderExpected : String :=
+"[shader(\"compute\")] [numthreads(256, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  uint step = 128u;
+  while ((step > 0u)) {
+    step = (step >> 1u);
+  }
+  return;
+}"
+
+example :
+    LeanSlang.emit whileLoopShader = whileLoopShaderExpected := by
+  native_decide
