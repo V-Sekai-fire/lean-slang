@@ -125,3 +125,36 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit groupSharedShader = groupSharedShaderExpected := by
   native_decide
+
+/-- Fixture: a helper function `mul2` plus an entry point. Verifies
+    multiple `SlangFunctionDecl`s in one module emit in order, and
+    that `entryPoint` correctly picks the one with shaderCompute. -/
+def helperFnShader : SlangShaderModule :=
+  { functions :=
+      [ { attrs   := []
+        , retType := .scalar .float
+        , name    := "mul2"
+        , params  :=
+            [ ⟨"a", .scalar .float, Semantic.none, none, none⟩
+            , ⟨"b", .scalar .float, Semantic.none, none, none⟩ ]
+        , body    := [.retExpr (.bin "*" (.var "a") (.var "b"))] }
+      , { attrs  := [.shaderCompute, .numthreads 1 1 1]
+        , name   := "main"
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+        , body   := [.ret none] } ] }
+
+def helperFnShaderExpected : String :=
+"float mul2(float a, float b) {
+  return (a * b);
+}
+
+[shader(\"compute\")] [numthreads(1, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  return;
+}"
+
+example :
+    LeanSlang.emit helperFnShader = helperFnShaderExpected := by
+  native_decide
+
+example : helperFnShader.entryPointName = "main" := by native_decide
