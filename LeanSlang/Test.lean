@@ -196,3 +196,36 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit outParamShader = outParamShaderExpected := by
   native_decide
+
+/-- Fixture: function with `precise` local declarations (Knuth two_sum). -/
+def preciseShader : SlangShaderModule :=
+  { functions :=
+      [ { attrs   := []
+        , retType := .scalar .float
+        , name    := "two_sum_hi"
+        , params  :=
+            [ ⟨"a", .scalar .float, Semantic.none, none, none, .qIn⟩
+            , ⟨"b", .scalar .float, Semantic.none, none, none, .qIn⟩ ]
+        , body    :=
+            [ .declPreciseInit (.scalar .float) "h"
+                (.bin "+" (.var "a") (.var "b"))
+            , .retExpr (.var "h") ] }
+      , { attrs  := [.shaderCompute, .numthreads 1 1 1]
+        , name   := "main"
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+        , body   := [.ret none] } ] }
+
+def preciseShaderExpected : String :=
+"float two_sum_hi(float a, float b) {
+  precise float h = (a + b);
+  return h;
+}
+
+[shader(\"compute\")] [numthreads(1, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  return;
+}"
+
+example :
+    LeanSlang.emit preciseShader = preciseShaderExpected := by
+  native_decide

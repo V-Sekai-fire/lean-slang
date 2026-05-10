@@ -38,7 +38,12 @@ deriving Inhabited
 /-- Slang statements. -/
 inductive SlangStmt
   /-- Local declaration: `<type> <name> [= <expr>];` -/
-  | declare  (ty : SlangType) (name : String) (init : Option SlangExpr)
+  | declare        (ty : SlangType) (name : String) (init : Option SlangExpr)
+  /-- `precise <type> <name> [= <expr>];` — prevents fp-contraction.
+      Maps to SPIR-V NoContraction. Required on every intermediate
+      in an error-free transformation (Knuth two_sum, FMA two_prod,
+      etc.) so optimisers cannot rewrite `(a + b) - a` as `b`. -/
+  | declarePrecise (ty : SlangType) (name : String) (init : Option SlangExpr)
   /-- Assignment: `lhs = rhs;`. -/
   | assign   (lhs rhs : SlangExpr)
   /-- `expr;` — usually a function call with side effects. -/
@@ -58,6 +63,10 @@ def SlangStmt.decl (ty : SlangType) (name : String) : SlangStmt :=
 /-- Convenience: declare with an initializer. -/
 def SlangStmt.declInit (ty : SlangType) (name : String) (init : SlangExpr) : SlangStmt :=
   .declare ty name (some init)
+
+/-- Convenience: `precise` declaration with an initializer. -/
+def SlangStmt.declPreciseInit (ty : SlangType) (name : String) (init : SlangExpr) : SlangStmt :=
+  .declarePrecise ty name (some init)
 
 /-- `return;` -/
 def SlangStmt.retVoid : SlangStmt := .ret none

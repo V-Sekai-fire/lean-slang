@@ -89,6 +89,11 @@ partial def emitStmt : Nat → SlangStmt → String
       match init with
       | some e => lhs ++ " = " ++ emitExpr e ++ ";"
       | none   => lhs ++ ";"
+  | depth, .declarePrecise ty name init =>
+      let lhs := indent depth ++ "precise " ++ emitSlangType ty ++ " " ++ name
+      match init with
+      | some e => lhs ++ " = " ++ emitExpr e ++ ";"
+      | none   => lhs ++ ";"
   | depth, .assign lhs rhs =>
       indent depth ++ emitExpr lhs ++ " = " ++ emitExpr rhs ++ ";"
   | depth, .expr e =>
