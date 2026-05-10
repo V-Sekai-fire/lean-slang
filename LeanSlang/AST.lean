@@ -92,11 +92,21 @@ structure SlangStructDecl where
   fields : List SlangBinding := []
 deriving Inhabited
 
+/-- A `groupshared` workgroup-local declaration. When `arraySize` is
+    `some n`, emits `groupshared <elemType> <name>[n];`; when `none`,
+    emits `groupshared <elemType> <name>;`. -/
+structure SlangGroupSharedDecl where
+  name      : String
+  elemType  : SlangType
+  arraySize : Option Nat := none
+deriving Inhabited
+
 /-- A shader module. -/
 structure SlangShaderModule where
-  structs   : List SlangStructDecl   := []
-  globals   : List SlangBinding      := []
-  functions : List SlangFunctionDecl := []
+  structs     : List SlangStructDecl       := []
+  groupShared : List SlangGroupSharedDecl  := []
+  globals     : List SlangBinding          := []
+  functions   : List SlangFunctionDecl     := []
 deriving Inhabited
 
 namespace SlangShaderModule

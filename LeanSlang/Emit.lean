@@ -137,13 +137,22 @@ def emitStruct (s : SlangStructDecl) : String :=
     (s.fields.map (fun b => "  " ++ emitSlangType b.type ++ " " ++ b.name ++ ";"))
   header ++ "\n" ++ fieldsStr ++ "\n" ++ closeBrace ++ ";"
 
-/-- Emit a complete shader module. Order: structs, globals, functions —
-    each non-empty section separated from the next by a blank line. -/
+/-- Emit a `groupshared` workgroup-local declaration. -/
+def emitGroupShared (g : SlangGroupSharedDecl) : String :=
+  let head := "groupshared " ++ emitSlangType g.elemType ++ " " ++ g.name
+  match g.arraySize with
+  | some n => head ++ "[" ++ toString n ++ "];"
+  | none   => head ++ ";"
+
+/-- Emit a complete shader module. Order: structs, groupshared,
+    globals, functions — each non-empty section separated from the
+    next by a blank line. -/
 def emit (m : SlangShaderModule) : String :=
   let s := String.intercalate "\n\n" (m.structs.map emitStruct)
+  let gs := String.intercalate "\n" (m.groupShared.map emitGroupShared)
   let g := String.intercalate "\n" (m.globals.map emitGlobalBinding)
   let f := String.intercalate "\n\n" (m.functions.map emitFunction)
-  let parts := [s, g, f].filter (fun p => !p.isEmpty)
+  let parts := [s, gs, g, f].filter (fun p => !p.isEmpty)
   String.intercalate "\n\n" parts
 
 end LeanSlang

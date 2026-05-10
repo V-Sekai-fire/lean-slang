@@ -95,3 +95,33 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit structAndCBufferShader = structAndCBufferShaderExpected := by
   native_decide
+
+/-- Fixture: a 256-thread reduce-style kernel with a groupshared scratch
+    array and a barrier call. -/
+def groupSharedShader : SlangShaderModule :=
+  { groupShared :=
+      [ { name := "scratch", elemType := .scalar .float, arraySize := some 256 } ]
+  , functions := [{
+      attrs  := [.shaderCompute, .numthreads 256 1 1]
+      name   := "main"
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      body   :=
+        [ .assign (.index (.var "scratch") (.member (.var "tid") "x"))
+                  (.litFloat 0.0)
+        , .expr (.call "GroupMemoryBarrierWithGroupSync" [])
+        , .ret none ]
+    }] }
+
+def groupSharedShaderExpected : String :=
+"groupshared float scratch[256];
+
+[shader(\"compute\")] [numthreads(256, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  scratch[tid.x] = 0.000000;
+  GroupMemoryBarrierWithGroupSync();
+  return;
+}"
+
+example :
+    LeanSlang.emit groupSharedShader = groupSharedShaderExpected := by
+  native_decide
