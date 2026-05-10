@@ -100,7 +100,8 @@ example :
     array and a barrier call. -/
 def groupSharedShader : SlangShaderModule :=
   { groupShared :=
-      [ { name := "scratch", elemType := .scalar .float, arraySize := some 256 } ]
+      [ { name := "scratch", elemType := .scalar .float, dims := [256] }
+      , { name := "tile",    elemType := .scalar .float, dims := [128, 16] } ]
   , functions := [{
       attrs  := [.shaderCompute, .numthreads 256 1 1]
       name   := "main"
@@ -114,6 +115,7 @@ def groupSharedShader : SlangShaderModule :=
 
 def groupSharedShaderExpected : String :=
 "groupshared float scratch[256];
+groupshared float tile[128][16];
 
 [shader(\"compute\")] [numthreads(256, 1, 1)]
 void main(uint3 tid : SV_DispatchThreadID) {

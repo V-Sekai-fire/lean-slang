@@ -112,13 +112,14 @@ structure SlangStructDecl where
   fields : List SlangBinding := []
 deriving Inhabited
 
-/-- A `groupshared` workgroup-local declaration. When `arraySize` is
-    `some n`, emits `groupshared <elemType> <name>[n];`; when `none`,
-    emits `groupshared <elemType> <name>;`. -/
+/-- A `groupshared` workgroup-local declaration. `dims` lists array
+    extents in declaration order: `[]` → scalar, `[n]` → 1D `T name[n]`,
+    `[n, m]` → 2D `T name[n][m]`, etc. Slang/HLSL writes each dim as
+    its own `[size]` segment after the variable name. -/
 structure SlangGroupSharedDecl where
-  name      : String
-  elemType  : SlangType
-  arraySize : Option Nat := none
+  name     : String
+  elemType : SlangType
+  dims     : List Nat := []
 deriving Inhabited
 
 /-- A shader module. -/

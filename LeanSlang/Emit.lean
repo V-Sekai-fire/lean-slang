@@ -159,9 +159,8 @@ def emitStruct (s : SlangStructDecl) : String :=
 /-- Emit a `groupshared` workgroup-local declaration. -/
 def emitGroupShared (g : SlangGroupSharedDecl) : String :=
   let head := "groupshared " ++ emitSlangType g.elemType ++ " " ++ g.name
-  match g.arraySize with
-  | some n => head ++ "[" ++ toString n ++ "];"
-  | none   => head ++ ";"
+  let dimsStr := g.dims.foldl (fun s n => s ++ "[" ++ toString n ++ "]") ""
+  head ++ dimsStr ++ ";"
 
 /-- Emit a complete shader module. Order: structs, groupshared,
     globals, functions — each non-empty section separated from the
