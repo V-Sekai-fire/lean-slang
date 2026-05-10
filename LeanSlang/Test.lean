@@ -61,3 +61,37 @@ example : LeanSlang.emit writeOneShader = writeOneShaderExpected := by
 /-- Entry-point name accessor. -/
 example : trivialShader.entryPointName = "main" := by native_decide
 example : writeOneShader.entryPointName = "main" := by native_decide
+
+/-- Fixture exercising struct decls + ConstantBuffer global. -/
+def structAndCBufferShader : SlangShaderModule :=
+  { structs :=
+      [ { name := "Params"
+        , fields :=
+            [ { name := "n",     type := .scalar .uint,  semantic := Semantic.none }
+            , { name := "alpha", type := .scalar .float, semantic := Semantic.none } ] } ]
+  , globals :=
+      [ ⟨"gParams", .const "Params", Semantic.none, some 0, some 0⟩ ]
+  , functions := [{
+      attrs  := [.shaderCompute, .numthreads 256 1 1]
+      name   := "main"
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      body   := [.ret none]
+    }] }
+
+def structAndCBufferShaderExpected : String :=
+"struct Params {
+  uint n;
+  float alpha;
+};
+
+[[vk::binding(0, 0)]]
+ConstantBuffer<Params> gParams;
+
+[shader(\"compute\")] [numthreads(256, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  return;
+}"
+
+example :
+    LeanSlang.emit structAndCBufferShader = structAndCBufferShaderExpected := by
+  native_decide

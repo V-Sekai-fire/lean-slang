@@ -130,13 +130,20 @@ def emitFunction (f : SlangFunctionDecl) : String :=
   let bodyStr := String.intercalate "\n" (f.body.map (emitStmt 1))
   header ++ "\n" ++ bodyStr ++ "\n" ++ closeBrace
 
-/-- Emit a complete shader module. Globals first; if both globals and
-    functions are present, separated by a blank line. -/
+/-- Emit a struct declaration. Fields are indented two spaces. -/
+def emitStruct (s : SlangStructDecl) : String :=
+  let header := "struct " ++ s.name ++ " " ++ openBrace
+  let fieldsStr := String.intercalate "\n"
+    (s.fields.map (fun b => "  " ++ emitSlangType b.type ++ " " ++ b.name ++ ";"))
+  header ++ "\n" ++ fieldsStr ++ "\n" ++ closeBrace ++ ";"
+
+/-- Emit a complete shader module. Order: structs, globals, functions —
+    each non-empty section separated from the next by a blank line. -/
 def emit (m : SlangShaderModule) : String :=
+  let s := String.intercalate "\n\n" (m.structs.map emitStruct)
   let g := String.intercalate "\n" (m.globals.map emitGlobalBinding)
   let f := String.intercalate "\n\n" (m.functions.map emitFunction)
-  if g.isEmpty then f
-  else if f.isEmpty then g
-  else g ++ "\n\n" ++ f
+  let parts := [s, g, f].filter (fun p => !p.isEmpty)
+  String.intercalate "\n\n" parts
 
 end LeanSlang

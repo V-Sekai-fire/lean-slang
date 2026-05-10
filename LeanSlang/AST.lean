@@ -84,8 +84,17 @@ structure SlangFunctionDecl where
   body    : List SlangStmt    := []
 deriving Inhabited
 
+/-- A struct declaration: `struct Name { type1 field1; ... };`. Field
+    semantics / bindings on `SlangBinding` are ignored — only `name`
+    and `type` are used inside a struct body. -/
+structure SlangStructDecl where
+  name   : String
+  fields : List SlangBinding := []
+deriving Inhabited
+
 /-- A shader module. -/
 structure SlangShaderModule where
+  structs   : List SlangStructDecl   := []
   globals   : List SlangBinding      := []
   functions : List SlangFunctionDecl := []
 deriving Inhabited
