@@ -45,8 +45,17 @@ inductive Semantic
   | none
 deriving Repr, BEq, Inhabited
 
+/-- Function-parameter direction qualifier. Slang inherits HLSL's
+    `in` / `out` / `inout` semantics. -/
+inductive ParamQualifier
+  | qIn
+  | qOut
+  | qInOut
+deriving Repr, BEq, Inhabited
+
 /-- A function / shader parameter binding: name, type, optional
-    semantic, optional register binding (e.g. `register(u0, space0)`). -/
+    semantic, optional register binding (e.g. `register(u0, space0)`),
+    optional `out` / `inout` qualifier. -/
 structure SlangBinding where
   name      : String
   type      : SlangType
@@ -55,6 +64,7 @@ structure SlangBinding where
       `none` means "let Slang assign one automatically". -/
   binding   : Option Nat := none
   space     : Option Nat := none
+  qualifier : ParamQualifier := ParamQualifier.qIn
 deriving Repr, Inhabited
 
 end LeanSlang

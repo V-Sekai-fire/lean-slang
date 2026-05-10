@@ -36,7 +36,11 @@ def emitSemantic : Semantic → String
 
 /-- Emit a function-parameter binding. -/
 def emitParamBinding (b : SlangBinding) : String :=
-  let core := emitSlangType b.type ++ " " ++ b.name
+  let qual := match b.qualifier with
+    | .qIn    => ""
+    | .qOut   => "out "
+    | .qInOut => "inout "
+  let core := qual ++ emitSlangType b.type ++ " " ++ b.name
   match b.semantic with
   | .none => core
   | s     => core ++ " : " ++ emitSemantic s

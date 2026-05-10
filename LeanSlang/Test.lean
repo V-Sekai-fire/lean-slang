@@ -15,7 +15,7 @@ def trivialShader : SlangShaderModule :=
   { functions := [{
       attrs  := [.shaderCompute, .numthreads 1 1 1]
       name   := "main"
-      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
       body   := [.ret none]
     }] }
 
@@ -34,11 +34,11 @@ example : LeanSlang.emit trivialShader = trivialShaderExpected := by
     a literal at index 0. -/
 def writeOneShader : SlangShaderModule :=
   { globals :=
-      [⟨"buf", .rwBuf (.scalar .float), Semantic.none, some 0, some 0⟩]
+      [⟨"buf", .rwBuf (.scalar .float), Semantic.none, some 0, some 0, .qIn⟩]
   , functions := [{
       attrs  := [.shaderCompute, .numthreads 64 1 1]
       name   := "main"
-      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
       body   :=
         [ .assign (.index (.var "buf") (.member (.var "tid") "x")) (.litFloat 1.0)
         , .ret none
@@ -70,11 +70,11 @@ def structAndCBufferShader : SlangShaderModule :=
             [ { name := "n",     type := .scalar .uint,  semantic := Semantic.none }
             , { name := "alpha", type := .scalar .float, semantic := Semantic.none } ] } ]
   , globals :=
-      [ ⟨"gParams", .const "Params", Semantic.none, some 0, some 0⟩ ]
+      [ ⟨"gParams", .const "Params", Semantic.none, some 0, some 0, .qIn⟩ ]
   , functions := [{
       attrs  := [.shaderCompute, .numthreads 256 1 1]
       name   := "main"
-      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
       body   := [.ret none]
     }] }
 
@@ -104,7 +104,7 @@ def groupSharedShader : SlangShaderModule :=
   , functions := [{
       attrs  := [.shaderCompute, .numthreads 256 1 1]
       name   := "main"
-      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
       body   :=
         [ .assign (.index (.var "scratch") (.member (.var "tid") "x"))
                   (.litFloat 0.0)
@@ -135,12 +135,12 @@ def helperFnShader : SlangShaderModule :=
         , retType := .scalar .float
         , name    := "mul2"
         , params  :=
-            [ ⟨"a", .scalar .float, Semantic.none, none, none⟩
-            , ⟨"b", .scalar .float, Semantic.none, none, none⟩ ]
+            [ ⟨"a", .scalar .float, Semantic.none, none, none, .qIn⟩
+            , ⟨"b", .scalar .float, Semantic.none, none, none, .qIn⟩ ]
         , body    := [.retExpr (.bin "*" (.var "a") (.var "b"))] }
       , { attrs  := [.shaderCompute, .numthreads 1 1 1]
         , name   := "main"
-        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none⟩]
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
         , body   := [.ret none] } ] }
 
 def helperFnShaderExpected : String :=
@@ -158,3 +158,41 @@ example :
   native_decide
 
 example : helperFnShader.entryPointName = "main" := by native_decide
+
+/-- Fixture: helper function with `out` parameters. Models the
+    `two_sum(a, b, out hi, out lo)` Knuth EFT primitive used by
+    dot_reduce.comp. -/
+def outParamShader : SlangShaderModule :=
+  { functions :=
+      [ { attrs   := []
+        , retType := .named "void"
+        , name    := "two_sum"
+        , params  :=
+            [ ⟨"a",  .scalar .float, Semantic.none, none, none, .qIn⟩
+            , ⟨"b",  .scalar .float, Semantic.none, none, none, .qIn⟩
+            , ⟨"hi", .scalar .float, Semantic.none, none, none, .qOut⟩
+            , ⟨"lo", .scalar .float, Semantic.none, none, none, .qOut⟩ ]
+        , body    :=
+            [ .assign (.var "hi") (.bin "+" (.var "a") (.var "b"))
+            , .assign (.var "lo") (.litFloat 0.0)
+            , .ret none ] }
+      , { attrs  := [.shaderCompute, .numthreads 1 1 1]
+        , name   := "main"
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+        , body   := [.ret none] } ] }
+
+def outParamShaderExpected : String :=
+"void two_sum(float a, float b, out float hi, out float lo) {
+  hi = (a + b);
+  lo = 0.000000;
+  return;
+}
+
+[shader(\"compute\")] [numthreads(1, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  return;
+}"
+
+example :
+    LeanSlang.emit outParamShader = outParamShaderExpected := by
+  native_decide
