@@ -287,3 +287,26 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit ternaryShader = ternaryShaderExpected := by
   native_decide
+
+/-- Fixture: a stack-local fixed-size array declaration. Mirrors the
+    `float acc[K_MAX]` pattern in spmv_multi.comp's per-thread
+    accumulator. -/
+def stackArrayShader : SlangShaderModule :=
+  { functions := [{
+      attrs  := [.shaderCompute, .numthreads 1 1 1]
+      name   := "main"
+      params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+      body   :=
+        [ .declareArray (.scalar .float) "acc" 16
+        , .ret none ] }] }
+
+def stackArrayShaderExpected : String :=
+"[shader(\"compute\")] [numthreads(1, 1, 1)]
+void main(uint3 tid : SV_DispatchThreadID) {
+  float acc[16];
+  return;
+}"
+
+example :
+    LeanSlang.emit stackArrayShader = stackArrayShaderExpected := by
+  native_decide

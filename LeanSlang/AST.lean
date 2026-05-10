@@ -47,6 +47,10 @@ inductive SlangStmt
       in an error-free transformation (Knuth two_sum, FMA two_prod,
       etc.) so optimisers cannot rewrite `(a + b) - a` as `b`. -/
   | declarePrecise (ty : SlangType) (name : String) (init : Option SlangExpr)
+  /-- `<elemTy> <name>[<size>];` — fixed-size local stack array.
+      No initialiser; caller is responsible for filling it. Used for
+      multi-RHS spmv-style accumulators. -/
+  | declareArray   (elemTy : SlangType) (name : String) (size : Nat)
   /-- Assignment: `lhs = rhs;`. -/
   | assign   (lhs rhs : SlangExpr)
   /-- `expr;` — usually a function call with side effects. -/

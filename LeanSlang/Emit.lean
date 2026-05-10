@@ -96,6 +96,9 @@ partial def emitStmt : Nat → SlangStmt → String
       match init with
       | some e => lhs ++ " = " ++ emitExpr e ++ ";"
       | none   => lhs ++ ";"
+  | depth, .declareArray elemTy name size =>
+      indent depth ++ emitSlangType elemTy ++ " " ++ name
+        ++ "[" ++ toString size ++ "];"
   | depth, .assign lhs rhs =>
       indent depth ++ emitExpr lhs ++ " = " ++ emitExpr rhs ++ ";"
   | depth, .expr e =>
