@@ -312,3 +312,40 @@ void main(uint3 tid : SV_DispatchThreadID) {
 example :
     LeanSlang.emit stackArrayShader = stackArrayShaderExpected := by
   native_decide
+
+/-- Fixture: a multi-entry-point "ubershader" module. Two compute
+    entry points share the same module-level globals — the downstream
+    codegen runs `slangc -entry <name>` per element of
+    `entryPointNames` to produce one SPIR-V binary per entry. -/
+def multiEntryShader : SlangShaderModule :=
+  { globals :=
+      [ ⟨"out_buffer", .rwBuf (.scalar .float), Semantic.none, some 0, some 0, .qIn⟩ ]
+  , functions :=
+      [ { attrs  := [.shaderCompute, .numthreads 1 1 1]
+        , name   := "init"
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+        , body   :=
+            [ .assign (.index (.var "out_buffer") (.litUint 0)) (.litFloat 0.0)
+            , .ret none ] }
+      -- A non-compute helper function — must NOT appear in entryPoints.
+      , { attrs   := []
+        , retType := .scalar .float
+        , name    := "double_it"
+        , params  := [⟨"x", .scalar .float, Semantic.none, none, none, .qIn⟩]
+        , body    := [.ret (some (.bin "*" (.var "x") (.litFloat 2.0)))] }
+      , { attrs  := [.shaderCompute, .numthreads 1 1 1]
+        , name   := "tick"
+        , params := [⟨"tid", .vec .uint 3, .svDispatchThreadId, none, none, .qIn⟩]
+        , body   :=
+            [ .assign (.index (.var "out_buffer") (.litUint 0))
+                (.call "double_it" [.index (.var "out_buffer") (.litUint 0)])
+            , .ret none ] } ] }
+
+example : multiEntryShader.entryPointNames = ["init", "tick"] := by
+  native_decide
+
+example : multiEntryShader.entryPointName = "init" := by
+  native_decide
+
+example : multiEntryShader.entryPoints.length = 2 := by
+  native_decide

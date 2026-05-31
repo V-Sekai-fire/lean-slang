@@ -132,7 +132,11 @@ deriving Inhabited
 
 namespace SlangShaderModule
 
-/-- The first function with a `shaderCompute` attribute, if any. -/
+/-- The first function with a `shaderCompute` attribute, if any.
+    Kept for back-compat with single-entry shader modules. New code
+    composing multi-entry "ubershaders" (one .slang source with several
+    `[shader("compute")]` functions, each compiled to its own SPIR-V
+    blob by `slangc -entry <name>`) should prefer `entryPoints`. -/
 def entryPoint (m : SlangShaderModule) : Option SlangFunctionDecl :=
   m.functions.find? (fun f => f.attrs.contains FnAttr.shaderCompute)
 
@@ -141,6 +145,17 @@ def entryPointName (m : SlangShaderModule) : String :=
   match m.entryPoint with
   | some f => f.name
   | none   => ""
+
+/-- All functions marked `[shader("compute")]`, in source order. Used
+    by multi-entry shader modules that the downstream codegen feeds to
+    `slangc -entry <name>` once per element to produce per-entry SPIR-V
+    binaries. -/
+def entryPoints (m : SlangShaderModule) : List SlangFunctionDecl :=
+  m.functions.filter (fun f => f.attrs.contains FnAttr.shaderCompute)
+
+/-- Names of every `[shader("compute")]` function, in source order. -/
+def entryPointNames (m : SlangShaderModule) : List String :=
+  (m.entryPoints).map (fun f => f.name)
 
 end SlangShaderModule
 
