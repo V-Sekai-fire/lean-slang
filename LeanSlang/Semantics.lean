@@ -172,6 +172,14 @@ function of (args, memory), for all memories. -/
       | some a, some v => evalStmtsU32M env (mem.store buf a v) rest
       | _, _ => none
   | .ret (some e) :: _ => e.evalU32M env mem
+  -- branching `if (c) { return tᵉ; } else { return eᵉ; }`: the condition selects
+  -- the arm (nonzero = true) and we evaluate that arm's return expression. Both
+  -- arms are evaluated in place (no recursive call), so the function stays
+  -- structural — which keeps it unfolding under `simp`/`bv_decide`.
+  | .ifThen c [.ret (some te)] [.ret (some ee)] :: _ =>
+      match c.evalU32M env mem with
+      | some cv => if cv ≠ 0 then te.evalU32M env mem else ee.evalU32M env mem
+      | none    => none
   | _ => none
 
 /-- `mem[0] = v; return mem[0];` returns the stored value `v`, for **all** prior
@@ -191,5 +199,14 @@ example (a b : U32) :
             (fun n => if n = "a" then a else b) = some r → ¬ r.ult a ∧ ¬ r.ult b := by
   simp only [SlangExpr.evalU32, binOpU32, Option.some.injEq]
   intro r h; subst h; bv_decide
+
+/-- A branching `if (c) { return x; } else { return y; }` statement body denotes
+`c ≠ 0 ? x : y` — statement-level control flow, proved at the `SlangStmt` level. -/
+example (c x y : U32) :
+    evalStmtsU32M (fun n => if n = "c" then c else if n = "x" then x else y) (fun _ _ => 0)
+      [ .ifThen (.var "c") [ .ret (some (.var "x")) ] [ .ret (some (.var "y")) ] ]
+      = some (if c ≠ 0 then x else y) := by
+  simp only [evalStmtsU32M, SlangExpr.evalU32M, reduceIte]
+  exact (apply_ite some (c ≠ 0) x y).symm
 
 end LeanSlang
