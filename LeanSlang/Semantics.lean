@@ -243,4 +243,29 @@ example (fe : FEnv) (x : U32) :
       = some (2 * fe "f" [x]) := by
   simp only [SlangExpr.evalU32F, binOpU32, Option.some.injEq]; bv_decide
 
+/-- Statement-level semantics for **call**-using bodies, against a function
+environment `fe`. Like `evalStmtsU32M` but expressions are evaluated with the
+call-aware `evalU32F` (no buffer memory here). Additive — a separate evaluator,
+so the memory statement semantics are untouched. Fragment: `declare ty name
+(some e)` (a call/ALU result lowered into a local) and `ret (some e)`. -/
+@[simp] def evalStmtsU32F (env : UEnv) (fe : FEnv) : List SlangStmt → Option U32
+  | .declare _ name (some e) :: rest =>
+      match e.evalU32F env fe with
+      | some v => evalStmtsU32F (env.set name v) fe rest
+      | none   => none
+  | .ret (some e) :: _ => e.evalU32F env fe
+  | _ => none
+
+/-- `uint x0 = f(a); uint x1 = f(a); uint x2 = x0 + x1; return x2;` denotes
+`2·(fe "f" [a])` for **all** callees — a call-using statement body, by `bv_decide`. -/
+example (fe : FEnv) (a : U32) :
+    evalStmtsU32F (fun n => if n = "a" then a else 0) fe
+      [ .declare (.scalar .uint) "x0" (some (.call "f" [.var "a"]))
+      , .declare (.scalar .uint) "x1" (some (.call "f" [.var "a"]))
+      , .declare (.scalar .uint) "x2" (some (.bin "+" (.var "x0") (.var "x1")))
+      , .ret (some (.var "x2")) ]
+      = some (2 * fe "f" [a]) := by
+  simp only [evalStmtsU32F, SlangExpr.evalU32F, UEnv.set, binOpU32, reduceIte, Option.some.injEq]
+  bv_decide
+
 end LeanSlang
