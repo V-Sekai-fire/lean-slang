@@ -1,5 +1,0 @@
-name = "LeanSlang"
-defaultTargets = ["LeanSlang"]
-
-[[lean_lib]]
-name = "LeanSlang"
