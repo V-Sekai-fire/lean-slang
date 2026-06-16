@@ -45,6 +45,11 @@ logical (`>>>`), matching Slang/SPIR-V semantics for `uint`. -/
   | "^",  a, b => some (a ^^^ b)
   | "<<", a, b => some (a <<< b)
   | ">>", a, b => some (a >>> b)
+  -- comparisons yield a C-style 0/1 word (Slang prints them as bool; the BitVec
+  -- model keeps everything in `U32`, which is what a `ternary`/`if` then tests).
+  | "==", a, b => some (if a = b then 1 else 0)
+  | "!=", a, b => some (if a = b then 0 else 1)
+  | "<",  a, b => some (if a.ult b then 1 else 0)
   | _,    _, _ => none
 
 /-- Denotation of the unsigned-integer scalar subset of `SlangExpr`. -/
@@ -54,6 +59,9 @@ logical (`>>>`), matching Slang/SPIR-V semantics for `uint`. -/
   | .bin op l r => match l.evalU32 env, r.evalU32 env with
                    | some a, some b => binOpU32 op a b
                    | _, _ => none
+  | .ternary c t f => match c.evalU32 env, t.evalU32 env, f.evalU32 env with
+                      | some cv, some tv, some fv => some (if cv ≠ 0 then tv else fv)
+                      | _, _, _ => none
   | _ => none
 
 /-! ## Fixtures — meaning, not just text.
@@ -108,6 +116,9 @@ abbrev MEnv := String → U32 → U32
   | .bin op l r => match l.evalU32M env mem, r.evalU32M env mem with
                    | some a, some b => binOpU32 op a b
                    | _, _ => none
+  | .ternary c t f => match c.evalU32M env mem, t.evalU32M env mem, f.evalU32M env mem with
+                      | some cv, some tv, some fv => some (if cv ≠ 0 then tv else fv)
+                      | _, _, _ => none
   | _ => none
 
 /-- `buf[i]` denotes the buffer read `mem "buf" i`, for **all** memories. -/
@@ -171,5 +182,14 @@ example (mem : MEnv) (v : U32) :
       , .ret (some (.index (.var "mem") (.litUint 0))) ]
       = some v := by
   simp
+
+/-- `(a < b) ? b : a` denotes the unsigned max of `a` and `b`: the result is ≥
+both operands, for **all** inputs — comparison + ternary, proved by `bv_decide`.
+The branchless conditional a leaf function emits as a `cmov`. -/
+example (a b : U32) :
+    ∀ r, (SlangExpr.ternary (.bin "<" (.var "a") (.var "b")) (.var "b") (.var "a")).evalU32
+            (fun n => if n = "a" then a else b) = some r → ¬ r.ult a ∧ ¬ r.ult b := by
+  simp only [SlangExpr.evalU32, binOpU32, Option.some.injEq]
+  intro r h; subst h; bv_decide
 
 end LeanSlang
