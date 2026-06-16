@@ -209,4 +209,38 @@ example (c x y : U32) :
   simp only [evalStmtsU32M, SlangExpr.evalU32M, reduceIte]
   exact (apply_ite some (c ≠ 0) x y).symm
 
+/-! ## Call-aware semantics: `SlangExpr.call` against a function environment
+
+`evalU32`/`evalU32M` denote pure / memory expressions. `evalU32F` adds function
+calls: a `call f [arg]` denotes `fe f [⟦arg⟧]`, where `fe : FEnv` is an
+uninterpreted environment of callee denotations. This lets a decompiler prove
+that an emitted call expression and its lifted IR mean the same function of
+(inputs, callees) — for **all** callees, since `fe` is abstract.
+
+Kept structural (and thus `simp`/`bv_decide`-friendly): the call cases take an
+atom argument (`var`/`litUint`) directly — no recursion through the argument
+list — while `bin` recurses on its two subexpressions as usual. This covers the
+calls a leaf renders (arguments are registers or immediates). -/
+
+/-- Function environment: a callee name + argument values denote a result. -/
+abbrev FEnv := String → List U32 → U32
+
+/-- Call-aware denotation of the integer subset: `evalU32` plus `call f [atom]`. -/
+@[simp] def SlangExpr.evalU32F (env : UEnv) (fe : FEnv) : SlangExpr → Option U32
+  | .litUint v           => some (BitVec.ofNat 32 v)
+  | .var name            => some (env name)
+  | .call f [.var nm]    => some (fe f [env nm])
+  | .call f [.litUint v] => some (fe f [BitVec.ofNat 32 v])
+  | .bin op l r => match l.evalU32F env fe, r.evalU32F env fe with
+                   | some a, some b => binOpU32 op a b
+                   | _, _ => none
+  | _ => none
+
+/-- `f(x) + f(x)` denotes `2·(fe "f" [x])` for **all** callees `fe` — the call
+result is abstracted as an opaque term by `bv_decide`. -/
+example (fe : FEnv) (x : U32) :
+    (SlangExpr.bin "+" (.call "f" [.var "x"]) (.call "f" [.var "x"])).evalU32F (fun _ => x) fe
+      = some (2 * fe "f" [x]) := by
+  simp only [SlangExpr.evalU32F, binOpU32, Option.some.injEq]; bv_decide
+
 end LeanSlang
