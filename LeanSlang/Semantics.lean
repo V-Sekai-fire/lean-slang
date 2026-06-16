@@ -86,4 +86,44 @@ example (a b : U32) :
   simp only [SlangExpr.evalU32, env2, binOpU32, reduceIte, Option.some.injEq]
   bv_decide
 
+/-! ## Memory-aware semantics: buffer reads
+
+`evalU32` is pure (no memory). `evalU32M` adds read-only buffer access: a
+`buf[idx]` expression (`SlangExpr.index (.var buf) idx`) — exactly how Slang
+reads a `StructuredBuffer` — denotes `mem buf (⟦idx⟧)`. This lets a caller prove
+that emitted Slang reading memory means a specific function of (vars, memory) —
+e.g. a decompiler's lifted load and the `buf[i]` it renders denote the same
+value, with the buffer left fully abstract so the proof holds for all memories. -/
+
+/-- Buffer environment: a buffer name + a 32-bit address resolve to a value. -/
+abbrev MEnv := String → U32 → U32
+
+/-- Memory-aware denotation: like `evalU32`, plus `buf[idx]` buffer reads. -/
+@[simp] def SlangExpr.evalU32M (env : UEnv) (mem : MEnv) : SlangExpr → Option U32
+  | .litUint v  => some (BitVec.ofNat 32 v)
+  | .var name   => some (env name)
+  | .index (.var buf) idx => match idx.evalU32M env mem with
+                             | some i => some (mem buf i)
+                             | none   => none
+  | .bin op l r => match l.evalU32M env mem, r.evalU32M env mem with
+                   | some a, some b => binOpU32 op a b
+                   | _, _ => none
+  | _ => none
+
+/-- `buf[i]` denotes the buffer read `mem "buf" i`, for **all** memories. -/
+example (mem : MEnv) (i : U32) :
+    (SlangExpr.index (.var "buf") (.var "i")).evalU32M (fun _ => i) mem
+      = some (mem "buf" i) := by
+  simp
+
+/-- `(buf[0] + buf[1])` and `(buf[1] + buf[0])` are the same function of memory —
+`bv_decide` with both buffer reads abstracted as opaque bitvector atoms. The
+memory analogue of the commutativity fixture above; the shape a decompiler uses
+to prove a lifted memory-reading leaf equivalent without running it. -/
+example (mem : MEnv) :
+    (SlangExpr.bin "+" (.index (.var "buf") (.litUint 0)) (.index (.var "buf") (.litUint 1))).evalU32M (fun _ => 0) mem
+      = (SlangExpr.bin "+" (.index (.var "buf") (.litUint 1)) (.index (.var "buf") (.litUint 0))).evalU32M (fun _ => 0) mem := by
+  simp only [SlangExpr.evalU32M, binOpU32, Option.some.injEq]
+  bv_decide
+
 end LeanSlang
