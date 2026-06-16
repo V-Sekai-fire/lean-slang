@@ -1,6 +1,7 @@
 import LeanSlang.Types
 import LeanSlang.AST
 import LeanSlang.Emit
+import LeanSlang.Compile
 import LeanSlang.Semantics
 import LeanSlang.Test
 

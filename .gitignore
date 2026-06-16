@@ -1,2 +1,6 @@
 .lake/
 build/
+
+# Slang SDK (fetched by vendor/fetch.sh)
+vendor/*
+!vendor/fetch.sh
