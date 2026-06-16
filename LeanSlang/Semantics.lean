@@ -126,4 +126,50 @@ example (mem : MEnv) :
   simp only [SlangExpr.evalU32M, binOpU32, Option.some.injEq]
   bv_decide
 
+/-! ## Statement-level semantics: locals, buffer stores, return
+
+`evalU32M` denotes a single expression. A real shader body is a *list of
+statements* that mutate variables and memory before returning. `evalStmtsU32M`
+gives that list a meaning: it threads a variable environment and a buffer memory
+through the statements and yields the returned value.
+
+Fragment (extend as kernels need it):
+- `declare ty name (some e)` — introduce/overwrite local `name := ⟦e⟧`.
+- `assign (index (var buf) idx) rhs` — buffer store `buf[idx] = ⟦rhs⟧`.
+- `ret (some e)` — the function value is `⟦e⟧`.
+Anything else (no-init declare, variable assign, control flow, fall-off-end)
+denotes `none`. This is what makes an emitted *store* provable: a decompiler can
+show its lifted store/return sequence and the Slang it renders mean the same
+function of (args, memory), for all memories. -/
+
+/-- Overwrite one variable. -/
+@[simp] def UEnv.set (env : UEnv) (name : String) (v : U32) : UEnv :=
+  fun n => if n = name then v else env n
+
+/-- Store to one buffer address. -/
+@[simp] def MEnv.store (mem : MEnv) (buf : String) (addr v : U32) : MEnv :=
+  fun b a => if b = buf then (if a = addr then v else mem b a) else mem b a
+
+/-- Denote a statement list: thread `(vars, mem)` and return the `ret` value. -/
+@[simp] def evalStmtsU32M (env : UEnv) (mem : MEnv) : List SlangStmt → Option U32
+  | .declare _ name (some e) :: rest =>
+      match e.evalU32M env mem with
+      | some v => evalStmtsU32M (env.set name v) mem rest
+      | none   => none
+  | .assign (.index (.var buf) idx) rhs :: rest =>
+      match idx.evalU32M env mem, rhs.evalU32M env mem with
+      | some a, some v => evalStmtsU32M env (mem.store buf a v) rest
+      | _, _ => none
+  | .ret (some e) :: _ => e.evalU32M env mem
+  | _ => none
+
+/-- `mem[0] = v; return mem[0];` returns the stored value `v`, for **all** prior
+memories — the store/load-back fact, proved at statement level. -/
+example (mem : MEnv) (v : U32) :
+    evalStmtsU32M (fun n => if n = "v" then v else 0) mem
+      [ .assign (.index (.var "mem") (.litUint 0)) (.var "v")
+      , .ret (some (.index (.var "mem") (.litUint 0))) ]
+      = some v := by
+  simp
+
 end LeanSlang
